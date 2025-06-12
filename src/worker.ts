@@ -73,12 +73,12 @@ export default {
         
         if (request.method === 'POST') {
           // TODO: Implement JSON-RPC request handling
-          const body = await request.json();
+          const body = await request.json() as any;
           
           // Basic response structure - to be replaced with actual MCP handling
           return new Response(JSON.stringify({
             jsonrpc: '2.0',
-            id: body.id,
+            id: body.id || null,
             result: {
               message: 'MCP server logic not yet implemented'
             }

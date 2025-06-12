@@ -98,7 +98,7 @@ export class WorkerTransport implements Transport {
     }
 
     try {
-      const body = await request.json();
+      const body = await request.json() as JSONRPCMessage;
       
       // Handle the request and get response
       const response = await this.processMessage(body);
@@ -219,6 +219,7 @@ export class WorkerTransport implements Transport {
       }
     }
     
+    // Return an error response - explicitly type as any to handle union type
     return {
       jsonrpc: '2.0',
       id: 'id' in message ? message.id : 0,
@@ -226,7 +227,7 @@ export class WorkerTransport implements Transport {
         code: -32601,
         message: 'Method not found'
       }
-    } as JSONRPCResponse;
+    } as any as JSONRPCResponse;
   }
 
   /**

@@ -1,7 +1,7 @@
 {
-    "name": "mcp-streamable-http-server",
+    "name": "mcp-test",
     "version": "1.0.0",
-    "description": "MCP Streamable HTTP Server implementation",
+    "description": "MCP Streamable HTTP Server tempate test",
     "main": "index.js",
     "type": "module",
     "bin": {
