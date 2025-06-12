@@ -13,10 +13,10 @@ import {
 import { randomUUID } from "crypto";
 import { Request, Response } from "express";
 
-const SESSION_ID_HEADER_NAME = "mcp-session-id";
+const SESSION_ID_HEADER_NAME = process.env.MCP_SESSION_HEADER_NAME || "mcp-session-id";
 const JSON_RPC = "2.0";
-const NWS_API_BASE = "https://api.weather.gov";
-const USER_AGENT = "weather-app/1.0";
+const NWS_API_BASE = process.env.WEATHER_API_BASE_URL || "https://api.weather.gov";
+const USER_AGENT = process.env.USER_AGENT || "weather-app/1.0";
 
 // Helper function for making NWS API requests
 async function makeNWSRequest<T>(url: string): Promise<T | null> {
@@ -112,8 +112,8 @@ export class MCPServer {
           logging: {}
         },
         serverInfo: {
-          name: "mcp-server",
-          version: "1.0.0"
+          name: process.env.MCP_SERVER_NAME || "mcp-server",
+          version: process.env.MCP_SERVER_VERSION || "1.0.0"
         }
       };
     });
@@ -160,8 +160,8 @@ export class MCPServer {
             logging: {}
           },
           serverInfo: {
-            name: "mcp-server",
-            version: "1.0.0"
+            name: process.env.MCP_SERVER_NAME || "mcp-server",
+            version: process.env.MCP_SERVER_VERSION || "1.0.0"
           }
         };
         

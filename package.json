@@ -8,7 +8,10 @@
         "mcp-streamable-server": "./build/index.js"
     },
     "scripts": {
-        "build": "tsc && chmod 755 build/index.js"
+        "build": "tsc && chmod 755 build/index.js",
+        "dev:worker": "wrangler dev",
+        "deploy": "wrangler deploy",
+        "build:worker": "tsc --project tsconfig.worker.json"
     },
     "files": [
         "build"
@@ -16,11 +19,23 @@
     "license": "ISC",
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.11.4",
+        "dotenv": "^16.4.5",
         "express": "^5.1.0"
     },
+    "_comments": {
+        "dependencies_to_adapt": [
+            "express: Will need to be replaced with native Workers Request/Response handling",
+            "@modelcontextprotocol/sdk: May need adaptation for Workers runtime, particularly StreamableHTTPServerTransport"
+        ],
+        "workers_compatible": [
+            "@modelcontextprotocol/sdk: Core MCP protocol should work, transport layer needs adaptation"
+        ]
+    },
     "devDependencies": {
+        "@cloudflare/workers-types": "^4.20241127.0",
         "@types/express": "^5.0.1",
         "@types/node": "^22.14.0",
-        "typescript": "^5.8.3"
+        "typescript": "^5.8.3",
+        "wrangler": "^3.87.0"
     }
 }

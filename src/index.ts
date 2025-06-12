@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 
+import dotenv from "dotenv";
 import express, { Request, Response } from "express";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { MCPServer } from "./server.js";
 
-// Default port
-let PORT = 8123;
+// Load environment variables from .env file
+dotenv.config();
+
+// Default port from environment or fallback
+let PORT = parseInt(process.env.PORT || "8123", 10);
 
 // Parse command-line arguments for --port=XXXX
 for (let i = 2; i < process.argv.length; i++) {
@@ -24,8 +28,8 @@ for (let i = 2; i < process.argv.length; i++) {
 const server = new MCPServer(
   new Server(
     {
-      name: "mcp-server",
-      version: "1.0.0",
+      name: process.env.MCP_SERVER_NAME || "mcp-server",
+      version: process.env.MCP_SERVER_VERSION || "1.0.0",
     },
     {
       capabilities: {
@@ -37,6 +41,69 @@ const server = new MCPServer(
 );
 
 const app = express();
+
+/**
+ * Authentication utility functions for Node.js MCP server
+ */
+class NodeAuthUtils {
+  /**
+   * Validate API key from request headers
+   */
+  static validateApiKey(req: Request): boolean {
+    // Check if authentication is required
+    const authRequired = process.env.MCP_AUTH_REQUIRED === 'true';
+    if (!authRequired) {
+      return true; // Authentication not required
+    }
+
+    const expectedApiKey = process.env.MCP_API_KEY;
+    if (!expectedApiKey) {
+      console.error('MCP_API_KEY not set but authentication is required');
+      return false;
+    }
+
+    const headerName = process.env.MCP_AUTH_HEADER_NAME || 'Authorization';
+    const authHeader = req.headers[headerName.toLowerCase()] as string;
+    
+    if (!authHeader) {
+      return false;
+    }
+
+    // Support both "Bearer <token>" format and direct API key format
+    let providedKey: string;
+    if (authHeader.startsWith('Bearer ')) {
+      providedKey = authHeader.substring(7); // Remove "Bearer " prefix
+    } else {
+      providedKey = authHeader;
+    }
+
+    return providedKey === expectedApiKey;
+  }
+
+  /**
+   * Authentication middleware
+   */
+  static authMiddleware(req: Request, res: Response, next: any) {
+    // Skip authentication for OPTIONS requests and root endpoint
+    if (req.method === 'OPTIONS' || req.path === '/') {
+      return next();
+    }
+
+    // Check authentication for MCP endpoints
+    if (req.path === '/mcp' && !NodeAuthUtils.validateApiKey(req)) {
+      return res.status(401).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32600,
+          message: 'Unauthorized: Invalid or missing API key'
+        },
+        id: null
+      }).header('WWW-Authenticate', 'Bearer realm="MCP Server"');
+    }
+
+    next();
+  }
+}
 
 // Add request logging for debugging
 app.use((req: Request, res: Response, next) => {
@@ -50,9 +117,9 @@ app.use((req: Request, res: Response, next) => {
 
 // Add CORS headers
 app.use((req: Request, res: Response, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
+  res.header('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
+  res.header('Access-Control-Allow-Methods', process.env.CORS_METHODS || 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', process.env.CORS_HEADERS || 'Content-Type, mcp-session-id, Authorization');
   
   // Handle preflight
   if (req.method === 'OPTIONS') {
@@ -64,6 +131,9 @@ app.use((req: Request, res: Response, next) => {
 });
 
 app.use(express.json());
+
+// Add authentication middleware
+app.use(NodeAuthUtils.authMiddleware);
 
 // Add root endpoint for debugging
 app.get('/', (req: Request, res: Response) => {

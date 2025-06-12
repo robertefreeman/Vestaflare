@@ -1,0 +1,27 @@
+# Cloudflare Workers Development Environment Variables
+# Copy this file to .dev.vars and fill in your actual values
+
+# Environment setting
+ENVIRONMENT=development
+
+# MCP Authentication Configuration
+# Set to true to require API key authentication for MCP requests
+MCP_AUTH_REQUIRED=false
+# API key that clients must provide to access the MCP server
+# MCP_API_KEY=your_secure_api_key_here
+# Header name to check for the API key (supports both Bearer token and direct key formats)
+MCP_AUTH_HEADER_NAME=Authorization
+
+# API Keys (add as needed)
+# WEATHER_API_KEY=your_weather_api_key_here
+# OTHER_API_KEY=your_other_api_key_here
+
+# Database URLs (if needed)
+# DATABASE_URL=your_database_url_here
+
+# External service endpoints (if needed)
+# EXTERNAL_SERVICE_URL=https://api.example.com
+
+# Debug settings
+# DEBUG=true
+# LOG_LEVEL=debug

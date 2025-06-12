@@ -7,6 +7,32 @@
 
 const SERVER_URL = 'http://localhost:8123/mcp';
 
+// Authentication configuration (set these if your server requires authentication)
+const USE_AUTH = false; // Set to true if your server has MCP_AUTH_REQUIRED=true
+const API_KEY = 'your-api-key-here'; // Replace with your actual API key
+const AUTH_HEADER = 'Authorization'; // Header name (matches MCP_AUTH_HEADER_NAME)
+
+/**
+ * Get headers with optional authentication
+ */
+function getAuthHeaders(includeContentType = true) {
+  const headers = {};
+  
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  if (USE_AUTH && API_KEY) {
+    // Support both Bearer token format and direct API key format
+    // Use Bearer format (recommended):
+    headers[AUTH_HEADER] = `Bearer ${API_KEY}`;
+    // Or use direct format:
+    // headers[AUTH_HEADER] = API_KEY;
+  }
+  
+  return headers;
+}
+
 // Example: Initialize the MCP connection
 async function initializeMCP() {
   const initRequest = {
@@ -31,9 +57,7 @@ async function initializeMCP() {
   try {
     const response = await fetch(SERVER_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(initRequest)
     });
 
@@ -58,9 +82,7 @@ async function listTools(sessionId) {
     params: {}
   };
 
-  const headers = {
-    'Content-Type': 'application/json',
-  };
+  const headers = getAuthHeaders();
   
   if (sessionId) {
     headers['mcp-session-id'] = sessionId;
@@ -96,9 +118,7 @@ async function getWeatherAlerts(sessionId, state = 'CA') {
     }
   };
 
-  const headers = {
-    'Content-Type': 'application/json',
-  };
+  const headers = getAuthHeaders();
   
   if (sessionId) {
     headers['mcp-session-id'] = sessionId;
@@ -135,9 +155,7 @@ async function getWeatherForecast(sessionId, latitude = 40.7128, longitude = -74
     }
   };
 
-  const headers = {
-    'Content-Type': 'application/json',
-  };
+  const headers = getAuthHeaders();
   
   if (sessionId) {
     headers['mcp-session-id'] = sessionId;
