@@ -8,10 +8,12 @@
         "vestaflare": "./build/index.js"
     },
     "scripts": {
-        "build": "tsc && chmod 755 build/index.js",
+        "build": "bun run tsc && chmod 755 build/index.js",
+        "start": "bun run build/index.js",
+        "dev": "bun run build && bun run start",
         "dev:worker": "wrangler dev",
         "deploy": "wrangler deploy",
-        "build:worker": "tsc --project tsconfig.worker.json"
+        "build:worker": "bun run tsc --project tsconfig.worker.json"
     },
     "files": [
         "build"
