@@ -34,9 +34,5 @@ vars = {
   MCP_AUTH_HEADER_NAME = "Authorization"
 }
 
-# Define which environment variables should be treated as secrets
-# These will be populated from GitHub Secrets during deployment
-[env.production.secrets]
-VESTABOARD_API_BASE_URL = "VESTABOARD_API_BASE_URL"
-VESTABOARD_READ_WRITE_KEY = "VESTABOARD_READ_WRITE_KEY"
-MCP_API_KEY = "MCP_API_KEY"
+# Secrets are handled through the GitHub Actions workflow
+# and don't need to be defined in wrangler.toml
