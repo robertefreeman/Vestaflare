@@ -26,7 +26,7 @@ git clone https://github.com/octodemo/Vestaflare.git
 cd Vestaflare
 
 # Install dependencies
-npm install
+bun install
 ```
 
 ### 2. 🔧 Vestaboard Setup
@@ -55,13 +55,13 @@ cp .env.example .env
 
 ```bash
 # Build the project
-npm run build
+bun run build
 
-# Run locally with Node.js
-node build/index.js
+# Run locally with Bun
+bun run start
 
 # Or specify a custom port
-node build/index.js --port=9000
+bun run build/index.js --port=9000
 ```
 
 🌐 The server will start at `http://localhost:8123` by default.
@@ -93,20 +93,20 @@ npm run deploy
 
 This template is designed to work in both environments:
 
-- 💻 **Node.js**: Full Express.js server for local development and traditional hosting
+- 💻 **Bun**: Fast runtime with Express.js server for local development and traditional hosting
 - ☁️ **Cloudflare Workers**: Optimized worker implementation for edge deployment
 
 ### 🧩 Key Components
 
 ```
 ├── src/
-│   ├── index.ts           # 💻 Node.js Express server entry point
+│   ├── index.ts           # 💻 Bun Express server entry point
 │   ├── worker.ts          # ☁️ Cloudflare Workers entry point  
 │   ├── worker-transport.ts # ⚡ Workers-optimized HTTP transport
 │   ├── server.ts          # 🔧 Core MCP server implementation
 ├── example-client.js      # 🧪 Example client for testing
 ├── wrangler.toml         # ☁️ Cloudflare Workers configuration
-├── tsconfig.json         # 💻 Node.js TypeScript config
+├── tsconfig.json         # 💻 Bun TypeScript config
 └── tsconfig.worker.json  # ☁️ Workers TypeScript config
 ```
 
@@ -257,7 +257,7 @@ Use the included example client to test your implementation:
 
 ```bash
 # Start your server
-npm run build && node build/index.js
+bun run build && bun run start
 
 # In another terminal, test with the example client
 node example-client.js
@@ -282,7 +282,7 @@ The example client demonstrates:
 - 🔧 **Zero maintenance**: Serverless infrastructure
 
 ### 🖥️ Traditional Hosting
-- 💻 **Node.js**: Deploy to any Node.js hosting platform
+- 💻 **Bun**: Deploy to any Bun-compatible hosting platform
 - 🌐 **Express.js**: Full HTTP server capabilities
 - 🎯 **Custom domains**: Complete control over deployment
 
@@ -290,9 +290,9 @@ The example client demonstrates:
 
 ## 🔧 Environment Variables
 
-### 💻 Node.js Development (.env file)
+### 💻 Bun Development (.env file)
 
-For local Node.js development, copy `.env.example` to `.env` and configure:
+For local Bun development, copy `.env.example` to `.env` and configure:
 
 ```bash
 # Copy the example file
@@ -341,7 +341,7 @@ cp .env.example .env
 
 For Cloudflare Workers development, copy `.dev.vars.example` to `.dev.vars` and configure similarly.
 
-💡 **Note**: The `.env` file is for Node.js development, while `.dev.vars` is for Cloudflare Workers. Both files are ignored by git for security.
+💡 **Note**: The `.env` file is for Bun development, while `.dev.vars` is for Cloudflare Workers. Both files are ignored by git for security.
 
 ---
 

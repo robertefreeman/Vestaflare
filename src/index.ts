@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import express, { Request, Response } from "express";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -41,9 +41,9 @@ const server = new MCPServer(
 const app = express();
 
 /**
- * Authentication utility functions for Node.js MCP server
+ * Authentication utility functions for MCP server
  */
-class NodeAuthUtils {
+class AuthUtils {
   /**
    * Validate API key from request headers
    */
@@ -88,7 +88,7 @@ class NodeAuthUtils {
     }
 
     // Check authentication for MCP endpoints
-    if (req.path === '/mcp' && !NodeAuthUtils.validateApiKey(req)) {
+    if (req.path === '/mcp' && !AuthUtils.validateApiKey(req)) {
       return res.status(401).json({
         jsonrpc: '2.0',
         error: {
@@ -131,7 +131,7 @@ app.use((req: Request, res: Response, next) => {
 app.use(express.json());
 
 // Add authentication middleware
-app.use(NodeAuthUtils.authMiddleware);
+app.use(AuthUtils.authMiddleware);
 
 // Add root endpoint for debugging
 app.get('/', (req: Request, res: Response) => {
