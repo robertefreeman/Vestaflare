@@ -208,11 +208,11 @@ async function handleInitialize(request: JSONRPCRequest, env: Env): Promise<JSON
         version: env.MCP_SERVER_VERSION || "1.0.0"
       }
     },
-    id: request.id || null
+    id: request.id ?? null
   };
 }
 
-async function handleListTools(): Promise<JSONRPCResponse> {
+async function handleListTools(request: JSONRPCRequest): Promise<JSONRPCResponse> {
   return {
     jsonrpc: "2.0",
     result: {
@@ -247,7 +247,7 @@ async function handleListTools(): Promise<JSONRPCResponse> {
         }
       ],
     },
-    id: null
+    id: request.id
   };
 }
 
@@ -274,7 +274,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
             },
           ],
         },
-        id: request.id || null
+        id: request.id ?? null
       };
     }
 
@@ -290,7 +290,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
             },
           ],
         },
-        id: request.id || null
+        id: request.id ?? null
       };
     }
 
@@ -306,7 +306,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
           },
         ],
       },
-      id: request.id || null
+      id: request.id ?? null
     };
   }
 
@@ -325,7 +325,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
             },
           ],
         },
-        id: request.id || null
+        id: request.id ?? null
       };
     }
 
@@ -356,7 +356,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
             },
           ],
         },
-        id: request.id || null
+        id: request.id ?? null
       };
     }
 
@@ -372,7 +372,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
           },
         ],
       },
-      id: request.id || null
+      id: request.id ?? null
     };
   }
 
@@ -382,7 +382,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
       code: -32601,
       message: `Tool not found: ${toolName}`
     },
-    id: request.id || null
+    id: request.id ?? null
   };
 }
 
@@ -505,8 +505,14 @@ export default {
               case 'initialize':
                 response = await handleInitialize(body, env);
                 break;
+              case 'initialized':
+                // MCP initialized notification - no response needed
+                return new Response(null, {
+                  status: 204,
+                  headers: corsHeaders,
+                });
               case 'tools/list':
-                response = await handleListTools();
+                response = await handleListTools(body);
                 break;
               case 'tools/call':
                 response = await handleCallTool(body, env);
@@ -518,7 +524,7 @@ export default {
                     code: -32601,
                     message: `Method not found: ${body.method}`
                   },
-                  id: body.id || null
+                  id: body.id ?? null
                 };
             }
 
