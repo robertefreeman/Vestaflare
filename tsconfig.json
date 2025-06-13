@@ -11,5 +11,5 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*", "node_modules/@modelcontextprotocol"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "src/worker.ts", "src/worker-transport.ts"]
 }

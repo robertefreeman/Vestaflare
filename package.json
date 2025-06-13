@@ -1,11 +1,11 @@
 {
-    "name": "mcp-test",
+    "name": "vestaflare",
     "version": "1.0.0",
-    "description": "MCP Streamable HTTP Server tempate test",
+    "description": "MCP Server for Vestaboard integration with VBML support",
     "main": "index.js",
     "type": "module",
     "bin": {
-        "mcp-streamable-server": "./build/index.js"
+        "vestaflare": "./build/index.js"
     },
     "scripts": {
         "build": "tsc && chmod 755 build/index.js",

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Simple example client to demonstrate MCP Streamable HTTP communication
- * This shows how to make requests to the MCP server
+ * Simple example client to demonstrate Vestaboard MCP Server communication
+ * This shows how to interact with a Vestaboard through the MCP server
  */
 
 const SERVER_URL = 'http://localhost:8123/mcp';
@@ -104,17 +104,15 @@ async function listTools(sessionId) {
   }
 }
 
-// Example: Get weather alerts for California
-async function getWeatherAlerts(sessionId, state = 'CA') {
+// Example: Get current message from Vestaboard
+async function getCurrentMessage(sessionId) {
   const callToolRequest = {
     jsonrpc: "2.0",
     id: "call-tool-1",
     method: "tools/call",
     params: {
-      name: "get-alerts",
-      arguments: {
-        state: state
-      }
+      name: "get-current-message",
+      arguments: {}
     }
   };
 
@@ -132,25 +130,25 @@ async function getWeatherAlerts(sessionId, state = 'CA') {
     });
 
     const data = await response.json();
-    console.log(`Weather alerts for ${state}:`, JSON.stringify(data, null, 2));
+    console.log('Current Vestaboard message:', JSON.stringify(data, null, 2));
     return data;
   } catch (error) {
-    console.error('Error getting weather alerts:', error);
+    console.error('Error getting current message:', error);
     return null;
   }
 }
 
-// Example: Get weather forecast for New York City
-async function getWeatherForecast(sessionId, latitude = 40.7128, longitude = -74.0060) {
+// Example: Post message to Vestaboard
+async function postMessage(sessionId, text = 'HELLO WORLD\nFROM MCP!', useVBML = true) {
   const callToolRequest = {
     jsonrpc: "2.0",
     id: "call-tool-2",
     method: "tools/call",
     params: {
-      name: "get-forecast",
+      name: "post-message",
       arguments: {
-        latitude: latitude,
-        longitude: longitude
+        text: text,
+        useVBML: useVBML
       }
     }
   };
@@ -169,17 +167,17 @@ async function getWeatherForecast(sessionId, latitude = 40.7128, longitude = -74
     });
 
     const data = await response.json();
-    console.log(`Weather forecast for ${latitude}, ${longitude}:`, JSON.stringify(data, null, 2));
+    console.log(`Posted message to Vestaboard:`, JSON.stringify(data, null, 2));
     return data;
   } catch (error) {
-    console.error('Error getting weather forecast:', error);
+    console.error('Error posting message to Vestaboard:', error);
     return null;
   }
 }
 
 // Main execution
 async function main() {
-  console.log('=== MCP Streamable HTTP Client Example ===\n');
+  console.log('=== Vestaboard MCP Client Example ===\n');
   
   console.log('1. Initializing MCP connection...');
   const sessionId = await initializeMCP();
@@ -187,11 +185,11 @@ async function main() {
   console.log('\n2. Listing available tools...');
   await listTools(sessionId);
   
-  console.log('\n3. Getting weather alerts for California...');
-  await getWeatherAlerts(sessionId, 'CA');
+  console.log('\n3. Getting current Vestaboard message...');
+  await getCurrentMessage(sessionId);
   
-  console.log('\n4. Getting weather forecast for New York City...');
-  await getWeatherForecast(sessionId, 40.7128, -74.0060);
+  console.log('\n4. Posting a message to Vestaboard...');
+  await postMessage(sessionId, 'HELLO {red}\nVESTABOARD!\n\nFrom MCP Server', true);
   
   console.log('\n=== Example completed ===');
 }
