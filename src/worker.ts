@@ -328,7 +328,21 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
       displayText = characterCodesToText(response);
     } else if (response && response.currentMessage && response.currentMessage.layout) {
       // If response has currentMessage.layout structure
-      displayText = characterCodesToText(response.currentMessage.layout);
+      // Parse the layout if it's a JSON string
+      let layout = response.currentMessage.layout;
+      if (typeof layout === 'string') {
+        try {
+          layout = JSON.parse(layout);
+        } catch (error) {
+          console.error('Failed to parse layout JSON string:', error);
+          displayText = `Error parsing layout: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      if (Array.isArray(layout)) {
+        displayText = characterCodesToText(layout);
+      } else {
+        displayText = `Invalid layout format: ${JSON.stringify(layout)}`;
+      }
     } else if (response && response.text) {
       // If response has text field
       displayText = response.text;
