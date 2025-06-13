@@ -27,16 +27,18 @@ jobs:
       - name: Build worker
         run: bun run build:worker
 
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3.10.0
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          environment: production
-          secrets: |
-            VESTABOARD_API_BASE_URL
-            VESTABOARD_READ_WRITE_KEY
-            MCP_API_KEY
+      - name: Install Wrangler v4
+        run: bun add -g wrangler@4
+
+      - name: Set Wrangler secrets
+        run: |
+          echo "${{ secrets.VESTABOARD_API_BASE_URL }}" | wrangler secret put VESTABOARD_API_BASE_URL --env production
+          echo "${{ secrets.VESTABOARD_READ_WRITE_KEY }}" | wrangler secret put VESTABOARD_READ_WRITE_KEY --env production
+          echo "${{ secrets.MCP_API_KEY }}" | wrangler secret put MCP_API_KEY --env production
         env:
-          VESTABOARD_API_BASE_URL: ${{ secrets.VESTABOARD_API_BASE_URL }}
-          VESTABOARD_READ_WRITE_KEY: ${{ secrets.VESTABOARD_READ_WRITE_KEY }}
-          MCP_API_KEY: ${{ secrets.MCP_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy to Cloudflare Workers
+        run: wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
