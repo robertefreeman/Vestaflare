@@ -120,17 +120,29 @@ async function makeVestaboardRequest<T>(
   }
 
   try {
+    console.log(`Making Vestaboard ${method} request to: ${url}`);
+    console.log('Headers:', JSON.stringify(headers, null, 2));
+    if (body) {
+      console.log('Body:', JSON.stringify(body, null, 2));
+    }
+    
     const response = await fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined
     });
     
+    console.log(`Response status: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
     
-    return (await response.json()) as T;
+    const responseData = await response.json();
+    console.log('Response data:', JSON.stringify(responseData, null, 2));
+    return responseData as T;
   } catch (error) {
     console.error("Error making Vestaboard request:", error);
     return null;
@@ -246,19 +258,24 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
   const { name: toolName, arguments: args } = request.params;
 
   if (toolName === "get-current-message") {
-    // Get current message from Vestaboard using Read-Write API
+    // Get current message from Vestaboard Read-Write API
+    // The Read-Write API endpoint is just the base URL (empty endpoint)
     const endpoint = '';
-    
-    const messageData = await makeVestaboardRequest<any>(endpoint, 'GET', undefined, env);
+    const response = await makeVestaboardRequest<any>(
+      endpoint,
+      'GET',
+      undefined,
+      env
+    );
 
-    if (!messageData) {
+    if (!response) {
       return {
         jsonrpc: "2.0",
         result: {
           content: [
             {
               type: "text",
-              text: "Failed to retrieve current message from Vestaboard. Please check your authentication credentials.",
+              text: "Failed to get current message from Vestaboard Read-Write API. Please check:\n- Your VESTABOARD_READ_WRITE_KEY is valid\n- Your Vestaboard device is online\n\nCheck the server logs for more detailed error information.",
             },
           ],
         },
@@ -266,23 +283,21 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
       };
     }
 
-    const currentLayout = messageData;
-    if (!currentLayout || !Array.isArray(currentLayout)) {
-      return {
-        jsonrpc: "2.0",
-        result: {
-          content: [
-            {
-              type: "text",
-              text: "No current message found on Vestaboard.",
-            },
-          ],
-        },
-        id: request.id ?? null
-      };
+    // Convert the response to readable text if it contains character codes
+    let displayText = "Current message retrieved successfully";
+    if (response && Array.isArray(response) && response.length > 0) {
+      // If response is a character codes matrix
+      displayText = characterCodesToText(response);
+    } else if (response && response.currentMessage && response.currentMessage.layout) {
+      // If response has currentMessage.layout structure
+      displayText = characterCodesToText(response.currentMessage.layout);
+    } else if (response && response.text) {
+      // If response has text field
+      displayText = response.text;
+    } else {
+      // Show raw response if format is unknown
+      displayText = `Raw response: ${JSON.stringify(response, null, 2)}`;
     }
-
-    const readableText = characterCodesToText(currentLayout);
     
     return {
       jsonrpc: "2.0",
@@ -290,7 +305,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
         content: [
           {
             type: "text",
-            text: `Current Vestaboard message:\n\n${readableText}`,
+            text: `Current Vestaboard message:\n\n${displayText}`,
           },
         ],
       },
@@ -318,9 +333,11 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
 
     const characterCodes = vbmlToCharacterCodes(text);
 
-    // Post message to Vestaboard using Read-Write API
+    // Post message to Vestaboard Read-Write API
+    // The Read-Write API endpoint is just the base URL (empty endpoint)
     const endpoint = '';
     
+    // The Read-Write API expects the character codes in the request body
     const postData = characterCodes;
     const response = await makeVestaboardRequest<any>(
       endpoint,
@@ -336,7 +353,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
           content: [
             {
               type: "text",
-              text: "Failed to post message to Vestaboard. Please check your authentication credentials and message format.",
+              text: "Failed to post message to Vestaboard Read-Write API. Please check:\n- Your VESTABOARD_READ_WRITE_KEY is valid\n- The message format is correct\n- Your Vestaboard device is online\n\nCheck the server logs for more detailed error information.",
             },
           ],
         },
