@@ -126,8 +126,16 @@ async function makeVestaboardRequest<T>(
     debugLog('Added Vestaboard Read-Write Key to headers');
   } else {
     debugLog('CRITICAL ERROR: VESTABOARD_READ_WRITE_KEY is missing or undefined');
+    debugLog('Environment variable details:', {
+      hasEnv: !!env,
+      envKeys: env ? Object.keys(env) : 'env is null/undefined',
+      vestaboardKeyType: typeof env?.VESTABOARD_READ_WRITE_KEY,
+      vestaboardKeyValue: env?.VESTABOARD_READ_WRITE_KEY ? '[REDACTED]' : 'undefined/null'
+    });
     console.error('VESTABOARD_READ_WRITE_KEY is required for Read-Write API');
-    return null;
+    
+    // Continue with the function to ensure all logging occurs, but mark that we'll fail
+    debugLog('Continuing execution for diagnostic purposes - will fail later');
   }
 
   try {
@@ -142,6 +150,14 @@ async function makeVestaboardRequest<T>(
     
     if (body) {
       debugLog('Request body preview:', Array.isArray(body) ? `${body.length}x${body[0]?.length || 0} matrix` : body);
+    }
+    
+    // Check if we have the required environment variable before making the request
+    if (!env?.VESTABOARD_READ_WRITE_KEY) {
+      debugLog('ABORTING REQUEST: Missing VESTABOARD_READ_WRITE_KEY');
+      debugLog('Request would have been made to:', { url, method });
+      debugLog('=== VESTABOARD API REQUEST FAILED (MISSING KEY) ===');
+      return null;
     }
     
     debugLog('Making fetch request...');
@@ -368,9 +384,56 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
   if (toolName === "post-message") {
     debugLog('=== POST MESSAGE TOOL EXECUTION START ===');
     debugLog('Args received:', args);
+    debugLog('Args type:', typeof args);
+    debugLog('Args keys:', args ? Object.keys(args) : 'args is null/undefined');
     
-    const text = args.text as string;
-    debugLog('Input text:', { text, textLength: text?.length });
+    // Add comprehensive parameter validation and logging
+    if (!args) {
+      debugLog('CRITICAL ERROR: args parameter is null or undefined');
+      return {
+        jsonrpc: "2.0",
+        result: {
+          content: [
+            {
+              type: "text",
+              text: "Error: No arguments provided to post-message tool. Expected an object with 'text' property.",
+            },
+          ],
+        },
+        id: request.id ?? null
+      };
+    }
+    
+    // Safely extract text parameter with validation
+    let text: string;
+    try {
+      text = args.text as string;
+      debugLog('Parameter extraction successful:', {
+        hasTextProperty: 'text' in args,
+        textValue: text,
+        textType: typeof text,
+        textLength: text?.length
+      });
+    } catch (error) {
+      debugLog('CRITICAL ERROR: Parameter extraction failed:', {
+        error: error instanceof Error ? error.message : String(error),
+        argsStructure: JSON.stringify(args, null, 2)
+      });
+      return {
+        jsonrpc: "2.0",
+        result: {
+          content: [
+            {
+              type: "text",
+              text: `Error extracting parameters: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        },
+        id: request.id ?? null
+      };
+    }
+    
+    debugLog('Input text validation:', { text, textLength: text?.length, textType: typeof text });
     
     if (!text) {
       debugLog('ERROR: No text provided for Vestaboard message');
@@ -530,10 +593,19 @@ function createSSEResponse(sessionId: string): Response {
 function debugLog(message: string, data?: any) {
   const timestamp = new Date().toISOString();
   const logMessage = `[VESTAFLARE-DEBUG ${timestamp}] ${message}`;
+  
+  // Use multiple logging methods to ensure visibility in Workers environment
   console.log(logMessage);
+  console.error(`[VESTAFLARE-ERROR-LOG] ${logMessage}`);
+  console.warn(`[VESTAFLARE-WARN-LOG] ${logMessage}`);
+  
   if (data !== undefined) {
-    console.log(`[VESTAFLARE-DATA ${timestamp}]`, JSON.stringify(data, null, 2));
+    const dataString = JSON.stringify(data, null, 2);
+    console.log(`[VESTAFLARE-DATA ${timestamp}]`, dataString);
+    console.error(`[VESTAFLARE-ERROR-DATA ${timestamp}]`, dataString);
+    console.warn(`[VESTAFLARE-WARN-DATA ${timestamp}]`, dataString);
   }
+  
   // Force flush by also logging to console.error for visibility
   console.error(`[VESTAFLARE-TRACE] ${message}`);
 }
