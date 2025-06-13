@@ -51,7 +51,7 @@ export default {
                 }
                 // TODO: Implement MCP server logic here
                 // TODO: Handle both GET (SSE) and POST (JSON-RPC) requests
-                // TODO: Integrate weather tools (get-alerts, get-forecast)
+                // TODO: Integrate Vestaboard tools (get-current-message, post-message)
                 // TODO: Implement session management compatible with Workers
                 if (request.method === 'GET') {
                     // TODO: Implement SSE streaming for Workers
