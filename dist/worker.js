@@ -64,40 +64,70 @@ function characterCodesToText(matrix) {
 }
 // Helper function for making Vestaboard API requests
 async function makeVestaboardRequest(endpoint, method = 'GET', body, env) {
+    debugLog('=== VESTABOARD API REQUEST START ===');
+    debugLog(`Method: ${method}, Endpoint: "${endpoint}"`);
     const url = `${VESTABOARD_API_BASE}/${endpoint}`;
+    debugLog('Full URL:', url);
     // Use Read/Write Key authentication for Read-Write API
     let headers = {
         'Content-Type': 'application/json',
     };
+    debugLog('Environment variable check:', {
+        hasVestaboardKey: !!env?.VESTABOARD_READ_WRITE_KEY,
+        keyLength: env?.VESTABOARD_READ_WRITE_KEY?.length || 0
+    });
     if (env?.VESTABOARD_READ_WRITE_KEY) {
         headers['X-Vestaboard-Read-Write-Key'] = env.VESTABOARD_READ_WRITE_KEY;
+        debugLog('Added Vestaboard Read-Write Key to headers');
     }
     else {
+        debugLog('CRITICAL ERROR: VESTABOARD_READ_WRITE_KEY is missing or undefined');
         console.error('VESTABOARD_READ_WRITE_KEY is required for Read-Write API');
         return null;
     }
     try {
-        console.log(`Making Vestaboard ${method} request to: ${url}`);
-        console.log('Headers:', JSON.stringify(headers, null, 2));
+        debugLog('Request details:', {
+            url,
+            method,
+            headers: { ...headers, 'X-Vestaboard-Read-Write-Key': '[REDACTED]' },
+            bodyType: body ? typeof body : 'undefined',
+            bodyIsArray: Array.isArray(body),
+            bodyLength: body ? JSON.stringify(body).length : 0
+        });
         if (body) {
-            console.log('Body:', JSON.stringify(body, null, 2));
+            debugLog('Request body preview:', Array.isArray(body) ? `${body.length}x${body[0]?.length || 0} matrix` : body);
         }
+        debugLog('Making fetch request...');
         const response = await fetch(url, {
             method,
             headers,
             body: body ? JSON.stringify(body) : undefined
         });
-        console.log(`Response status: ${response.status} ${response.statusText}`);
+        debugLog('Fetch completed:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            headers: Object.fromEntries(response.headers.entries())
+        });
         if (!response.ok) {
             const errorText = await response.text();
+            debugLog('HTTP error response body:', errorText);
             console.error(`HTTP error! status: ${response.status}, body: ${errorText}`);
             throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
         }
+        debugLog('Parsing JSON response...');
         const responseData = await response.json();
-        console.log('Response data:', JSON.stringify(responseData, null, 2));
+        debugLog('Parsed response data:', responseData);
+        debugLog('=== VESTABOARD API REQUEST SUCCESS ===');
         return responseData;
     }
     catch (error) {
+        debugLog('=== VESTABOARD API REQUEST ERROR ===');
+        debugLog('Caught error:', {
+            name: error instanceof Error ? error.name : 'Unknown',
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
+        });
         console.error("Error making Vestaboard request:", error);
         return null;
     }
@@ -200,8 +230,12 @@ async function handleListTools(request) {
     };
 }
 async function handleCallTool(request, env) {
+    debugLog('=== HANDLE CALL TOOL START ===');
+    debugLog('Request params:', request.params);
     const { name: toolName, arguments: args } = request.params;
+    debugLog('Tool execution:', { toolName, args });
     if (toolName === "get-current-message") {
+        debugLog('Executing get-current-message tool');
         // Get current message from Vestaboard Read-Write API
         // The Read-Write API endpoint is just the base URL (empty endpoint)
         const endpoint = '';
@@ -252,8 +286,12 @@ async function handleCallTool(request, env) {
         };
     }
     if (toolName === "post-message") {
+        debugLog('=== POST MESSAGE TOOL EXECUTION START ===');
+        debugLog('Args received:', args);
         const text = args.text;
+        debugLog('Input text:', { text, textLength: text?.length });
         if (!text) {
+            debugLog('ERROR: No text provided for Vestaboard message');
             return {
                 jsonrpc: "2.0",
                 result: {
@@ -267,14 +305,28 @@ async function handleCallTool(request, env) {
                 id: request.id ?? null
             };
         }
+        debugLog('Converting text to character codes...');
         const characterCodes = vbmlToCharacterCodes(text);
+        debugLog('Character codes conversion result:', {
+            matrixSize: `${characterCodes.length}x${characterCodes[0]?.length || 0}`,
+            firstRow: characterCodes[0]?.slice(0, 5) || [],
+            totalCharacters: characterCodes.flat().filter(c => c !== 0).length
+        });
         // Post message to Vestaboard Read-Write API
         // The Read-Write API endpoint is just the base URL (empty endpoint)
         const endpoint = '';
+        debugLog('Preparing API request:', { endpoint, method: 'POST' });
         // The Read-Write API expects the character codes in the request body
         const postData = characterCodes;
+        debugLog('About to call makeVestaboardRequest...');
         const response = await makeVestaboardRequest(endpoint, 'POST', postData, env);
+        debugLog('makeVestaboardRequest returned:', {
+            hasResponse: !!response,
+            responseType: typeof response,
+            responseKeys: response ? Object.keys(response) : []
+        });
         if (!response) {
+            debugLog('ERROR: No response from Vestaboard API - returning failure message');
             return {
                 jsonrpc: "2.0",
                 result: {
@@ -288,8 +340,10 @@ async function handleCallTool(request, env) {
                 id: request.id ?? null
             };
         }
+        debugLog('SUCCESS: Vestaboard API call succeeded');
         const displayText = characterCodesToText(characterCodes);
-        return {
+        debugLog('Display text generated:', { displayText });
+        const successResponse = {
             jsonrpc: "2.0",
             result: {
                 content: [
@@ -301,6 +355,9 @@ async function handleCallTool(request, env) {
             },
             id: request.id ?? null
         };
+        debugLog('=== POST MESSAGE TOOL EXECUTION SUCCESS ===');
+        debugLog('Returning success response:', successResponse);
+        return successResponse;
     }
     return {
         jsonrpc: "2.0",
@@ -366,8 +423,30 @@ function createSSEResponse(sessionId) {
         },
     });
 }
+// Enhanced logging function that ensures output appears in wrangler tail
+function debugLog(message, data) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[VESTAFLARE-DEBUG ${timestamp}] ${message}`;
+    console.log(logMessage);
+    if (data !== undefined) {
+        console.log(`[VESTAFLARE-DATA ${timestamp}]`, JSON.stringify(data, null, 2));
+    }
+    // Force flush by also logging to console.error for visibility
+    console.error(`[VESTAFLARE-TRACE] ${message}`);
+}
 export default {
     async fetch(request, env, ctx) {
+        debugLog('=== WORKER FETCH START ===');
+        debugLog('Request method:', request.method);
+        debugLog('Request URL:', request.url);
+        // Log environment variable availability (without exposing secrets)
+        debugLog('Environment check:', {
+            hasVestaboardKey: !!env?.VESTABOARD_READ_WRITE_KEY,
+            hasVestaboardBase: !!env?.VESTABOARD_API_BASE_URL,
+            hasMcpApiKey: !!env?.MCP_API_KEY,
+            authRequired: env?.MCP_AUTH_REQUIRED,
+            environment: env?.ENVIRONMENT
+        });
         // Set up CORS headers for all responses
         const corsHeaders = {
             'Access-Control-Allow-Origin': '*',
@@ -376,6 +455,7 @@ export default {
         };
         // Handle preflight OPTIONS requests
         if (request.method === 'OPTIONS') {
+            debugLog('Handling OPTIONS preflight request');
             return new Response(null, {
                 status: 204,
                 headers: corsHeaders,
@@ -383,6 +463,7 @@ export default {
         }
         try {
             const url = new URL(request.url);
+            debugLog('Parsed URL pathname:', url.pathname);
             // Health check endpoint
             if (url.pathname === '/health') {
                 return new Response(JSON.stringify({
@@ -400,37 +481,52 @@ export default {
             }
             // Main MCP endpoint
             if (url.pathname === '/mcp') {
+                debugLog('Processing /mcp endpoint');
                 // Check authentication for MCP endpoints
+                debugLog('Checking authentication...');
                 if (!AuthUtils.validateApiKey(request, env)) {
+                    debugLog('Authentication failed - returning unauthorized response');
                     return AuthUtils.createUnauthorizedResponse();
                 }
+                debugLog('Authentication passed');
                 if (request.method === 'GET') {
+                    debugLog('Handling GET request for SSE');
                     // Handle SSE requests
                     const sessionId = request.headers.get('mcp-session-id') || generateSessionId();
+                    debugLog('SSE session ID:', sessionId);
                     return createSSEResponse(sessionId);
                 }
                 if (request.method === 'POST') {
+                    debugLog('Handling POST request for JSON-RPC');
                     // Handle JSON-RPC requests
                     try {
+                        debugLog('Parsing JSON body...');
                         const body = await request.json();
+                        debugLog('Parsed JSON-RPC request:', { method: body.method, id: body.id });
                         let response;
                         switch (body.method) {
                             case 'initialize':
+                                debugLog('Handling initialize method');
                                 response = await handleInitialize(body, env);
                                 break;
                             case 'initialized':
+                                debugLog('Handling initialized notification');
                                 // MCP initialized notification - no response needed
                                 return new Response(null, {
                                     status: 204,
                                     headers: corsHeaders,
                                 });
                             case 'tools/list':
+                                debugLog('Handling tools/list method');
                                 response = await handleListTools(body);
                                 break;
                             case 'tools/call':
+                                debugLog('Handling tools/call method');
                                 response = await handleCallTool(body, env);
+                                debugLog('tools/call response:', response);
                                 break;
                             default:
+                                debugLog('Unknown method:', body.method);
                                 response = {
                                     jsonrpc: "2.0",
                                     error: {
@@ -440,6 +536,11 @@ export default {
                                     id: body.id ?? null
                                 };
                         }
+                        debugLog('Sending JSON-RPC response:', {
+                            hasResult: !!response.result,
+                            hasError: !!response.error,
+                            id: response.id
+                        });
                         return new Response(JSON.stringify(response), {
                             status: 200,
                             headers: {
@@ -449,6 +550,10 @@ export default {
                         });
                     }
                     catch (error) {
+                        debugLog('JSON parsing error:', {
+                            name: error instanceof Error ? error.name : 'Unknown',
+                            message: error instanceof Error ? error.message : String(error)
+                        });
                         return new Response(JSON.stringify({
                             jsonrpc: '2.0',
                             error: {
