@@ -1,38 +1,42 @@
 name: Deploy to Cloudflare Workers
 
 on:
+  push:
+    branches:
+      - main
+      - master
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - development
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy to Cloudflare Workers
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
+
+      - name: Build worker
+        run: bun run build:worker
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env ${{ github.event.inputs.environment }}
+          environment: production
+          secrets: |
+            VESTABOARD_API_BASE_URL
+            VESTABOARD_READ_WRITE_KEY
+            MCP_API_KEY
+        env:
+          VESTABOARD_API_BASE_URL: ${{ secrets.VESTABOARD_API_BASE_URL }}
+          VESTABOARD_READ_WRITE_KEY: ${{ secrets.VESTABOARD_READ_WRITE_KEY }}
+          MCP_API_KEY: ${{ secrets.MCP_API_KEY }}

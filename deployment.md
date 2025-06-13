@@ -34,6 +34,20 @@ All configuration is managed via environment variables, injected as GitHub Secre
 
 ## 4. Build and Deploy
 
+### Required GitHub Secrets
+
+Before deploying, you must set up the following secrets in your GitHub repository:
+
+**Repository Settings > Secrets and variables > Actions > New repository secret**
+
+#### Essential Secrets (Required):
+- `CLOUDFLARE_API_TOKEN` - Your Cloudflare API token with Workers edit permissions
+- `VESTABOARD_READ_WRITE_KEY` - Your Vestaboard Read/Write API key
+- `VESTABOARD_API_BASE_URL` - Vestaboard API base URL (usually `https://rw.vestaboard.com`)
+
+#### Optional Secrets (if MCP authentication is enabled):
+- `MCP_API_KEY` - API key for MCP server authentication (if `MCP_AUTH_REQUIRED=true`)
+
 ### Local Development
 
 ```bash
@@ -41,17 +55,28 @@ All configuration is managed via environment variables, injected as GitHub Secre
 bun install
 
 # Build for Workers
-npm run build:worker
+bun run build:worker
 
 # Start local Workers dev server
-npm run dev:worker
+bun run dev:worker
 ```
 
 ### Cloudflare Workers Deployment
 
-- **Recommended:** Use the provided GitHub Actions workflow.
-- Go to **GitHub > Actions > Deploy to Cloudflare Workers**.
-- Ensure all required secrets are set before deploying.
+#### Option 1: GitHub Actions (Recommended)
+1. Ensure all required secrets are set in GitHub (see above)
+2. Push to `main` or `master` branch, or manually trigger the workflow
+3. Go to **GitHub > Actions > Deploy to Cloudflare Workers**
+4. Monitor the deployment progress
+
+#### Option 2: Manual Deployment
+```bash
+# Build the worker
+bun run build:worker
+
+# Deploy manually (requires wrangler authentication)
+bun run deploy
+```
 
 ---
 
@@ -75,9 +100,50 @@ npm run dev:worker
 
 ## 7. Troubleshooting
 
-- **Deployment fails:** Check that all required secrets are set.
-- **Authentication errors:** Ensure `MCP_AUTH_REQUIRED` and `MCP_API_KEY` are set correctly.
-- **API errors:** Verify Vestaboard credentials and endpoint URLs.
+### Common Deployment Issues
+
+#### 1. `VESTABOARD_READ_WRITE_KEY is required for Read-Write API`
+**Cause:** The `VESTABOARD_READ_WRITE_KEY` secret is not properly set or passed to Cloudflare Workers.
+
+**Solution:**
+1. Verify the secret exists in GitHub: `Settings > Secrets and variables > Actions`
+2. Ensure the secret name matches exactly: `VESTABOARD_READ_WRITE_KEY`
+3. Check that the GitHub Actions workflow includes this secret in both `secrets:` and `env:` sections
+4. Redeploy after confirming the secret is set
+
+#### 2. GitHub Actions Deployment Fails
+**Cause:** Missing or incorrect `CLOUDFLARE_API_TOKEN`.
+
+**Solution:**
+1. Generate a new Cloudflare API token with `Workers:Edit` permissions
+2. Add it as `CLOUDFLARE_API_TOKEN` in GitHub Secrets
+3. Ensure the token has access to your Cloudflare account and the specific zone
+
+#### 3. Wrangler Authentication Errors
+**Cause:** Cloudflare API token lacks sufficient permissions.
+
+**Solution:**
+1. Go to Cloudflare Dashboard > My Profile > API Tokens
+2. Create a token with these permissions:
+   - `Zone:Zone Settings:Edit`
+   - `Zone:Zone:Read`
+   - `Workers:Worker Scripts:Edit`
+3. Include all zones or specify your domain
+
+#### 4. Environment Variables Not Available in Production
+**Cause:** Secrets not properly configured in `wrangler.toml` or GitHub Actions.
+
+**Solution:**
+1. Check that secrets are listed in the GitHub Actions workflow `secrets:` section
+2. Verify the `wrangler.toml` production environment configuration
+3. Ensure secret names match exactly between GitHub and the workflow file
+
+### General Troubleshooting Steps
+
+- **Build fails:** Check TypeScript compilation errors in the Actions log
+- **Authentication errors:** Ensure `MCP_AUTH_REQUIRED` and `MCP_API_KEY` are set correctly
+- **API errors:** Verify Vestaboard credentials and endpoint URLs
+- **Runtime errors:** Check Cloudflare Workers logs in the dashboard
 
 ---
 
