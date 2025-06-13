@@ -1,18 +1,18 @@
-# 🚀 MCP Streamable HTTP Server Template
+# 🎯 Vestaflare - Vestaboard MCP Server
 
-✨ A reusable template for building **streamable HTTP transport MCP servers** that can be quickly deployed to **Cloudflare Workers free tier**. This template provides a complete foundation for creating Model Context Protocol (MCP) servers with real-time streaming capabilities and dual deployment support.
+✨ A **Model Context Protocol (MCP) server** for interacting with Vestaboard displays. This server provides tools to read current messages and post new content to your Vestaboard using VBML (Vestaboard Markup Language) formatting.
 
 ---
 
-## 🎯 What This Template Provides
+## 🎯 What This Server Provides
 
-- 🔧 **Complete MCP Implementation**: Full Model Context Protocol server implementation using the official `@modelcontextprotocol/sdk`
-- ⚡ **Streamable HTTP Transport**: Server-Sent Events (SSE) support for real-time client notifications
-- ☁️ **Cloudflare Workers Integration**: Optimized for deployment to Cloudflare Workers free tier
-- 🔄 **Dual Runtime Support**: Works in both Node.js development environment and Cloudflare Workers production
-- 👥 **Multi-session Handling**: Supports multiple simultaneous client connections
-- 💻 **TypeScript Foundation**: Fully typed codebase with proper configuration
-- 📝 **Example Implementation**: Working example to demonstrate usage patterns
+- 🔧 **Vestaboard Integration**: Full integration with Vestaboard Read/Write API
+- 📱 **VBML Support**: Parse and convert VBML markup to character codes
+- ⚡ **MCP Protocol**: Complete Model Context Protocol server implementation
+- 🎨 **Color Support**: Use colored squares in your messages with VBML
+- 🔄 **Real-time Updates**: Stream messages to your Vestaboard
+- 💻 **TypeScript Foundation**: Fully typed codebase
+- 📝 **Example Client**: Working examples to demonstrate usage
 
 ---
 
@@ -21,22 +21,34 @@
 ### 1. 📦 Clone and Setup
 
 ```bash
-# Clone this template (replace with your repo URL)
-git clone <your-template-repo-url>
-cd your-mcp-server
+# Clone the repository
+git clone https://github.com/octodemo/Vestaflare.git
+cd Vestaflare
 
 # Install dependencies
 npm install
 ```
 
-### 2. 🔧 Environment Setup
+### 2. 🔧 Vestaboard Setup
+
+Before using this server, you'll need to set up your Vestaboard authentication:
+
+1. **Get API Credentials**: Visit [Vestaboard Developer Portal](https://docs.vestaboard.com/docs/read-write-api/authentication)
+2. **Choose Authentication Method**:
+   - **Read/Write Key** (recommended): Simpler setup for personal use
+   - **API Key + Secret**: For applications requiring OAuth-style authentication
 
 ```bash
 # Copy the example environment file
 cp .env.example .env
 
-# Edit .env with your configuration
-# Update API keys, database URLs, and other settings as needed
+# Edit .env with your Vestaboard credentials
+# Add either:
+#   VESTABOARD_READ_WRITE_KEY=your_read_write_key_here
+# OR:
+#   VESTABOARD_API_KEY=your_api_key_here
+#   VESTABOARD_API_SECRET=your_api_secret_here
+#   VESTABOARD_SUBSCRIPTION_ID=your_subscription_id_here
 ```
 
 ### 3. 💻 Local Development
@@ -52,7 +64,7 @@ node build/index.js
 node build/index.js --port=9000
 ```
 
-🌐 The server will start at `http://localhost:8123` by default (or the port specified in your `.env` file).
+🌐 The server will start at `http://localhost:8123` by default.
 
 ### 4. ☁️ Cloudflare Workers Development
 
@@ -100,49 +112,62 @@ This template is designed to work in both environments:
 
 ---
 
-## ✨ Customizing the Template
+## 🛠️ Available Tools
 
-### 1. 🔧 Define Your Tools
+This server provides two main tools for Vestaboard interaction:
 
-Edit [`src/server.ts`](src/server.ts) to implement your specific MCP tools:
+### 1. `get-current-message`
+Retrieves the current message displayed on your Vestaboard.
 
-```typescript
-// Add your custom tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "your-custom-tool",
-        description: "Description of what your tool does",
-        inputSchema: {
-          type: "object",
-          properties: {
-            // Define your tool's parameters
-          },
-        },
-      },
-    ],
-  };
-});
+**Parameters:** None
 
-// Implement your tool logic
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  
-  switch (name) {
-    case "your-custom-tool":
-      // Implement your tool logic here
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Your tool response"
-          }
-        ]
-      };
-    default:
-      throw new McpError(ErrorCode.MethodNotFound, `Tool not found: ${name}`);
+**Example:**
+```json
+{
+  "name": "get-current-message",
+  "arguments": {}
+}
+```
+
+### 2. `post-message`
+Posts a new message to your Vestaboard with VBML support.
+
+**Parameters:**
+- `text` (string, required): The message text to display
+- `useVBML` (boolean, optional): Whether to parse VBML formatting (default: true)
+
+**VBML Examples:**
+- `{red}` - Red colored square
+- `{blue}` - Blue colored square  
+- `{yellow}` - Yellow colored square
+- `{green}` - Green colored square
+- `{orange}` - Orange colored square
+- `{violet}` - Violet colored square
+- `{white}` - White colored square
+
+**Example:**
+```json
+{
+  "name": "post-message",
+  "arguments": {
+    "text": "HELLO {red}\nWORLD!\n\nFrom Vestaflare",
+    "useVBML": true
   }
+}
+```
+
+## ✨ Using the Example Client
+
+```bash
+# Test the server with the included example client
+node example-client.js
+```
+
+This will:
+1. Initialize MCP connection
+2. List available tools
+3. Get current Vestaboard message
+4. Post a test message with VBML formatting
 });
 ```
 

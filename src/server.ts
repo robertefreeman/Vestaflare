@@ -15,73 +15,128 @@ import { Request, Response } from "express";
 
 const SESSION_ID_HEADER_NAME = process.env.MCP_SESSION_HEADER_NAME || "mcp-session-id";
 const JSON_RPC = "2.0";
-const NWS_API_BASE = process.env.WEATHER_API_BASE_URL || "https://api.weather.gov";
-const USER_AGENT = process.env.USER_AGENT || "weather-app/1.0";
+const VESTABOARD_API_BASE = process.env.VESTABOARD_API_BASE_URL || "https://rw.vestaboard.com";
+const VESTABOARD_READ_WRITE_KEY = process.env.VESTABOARD_READ_WRITE_KEY;
+const VESTABOARD_SUBSCRIPTION_ID = process.env.VESTABOARD_SUBSCRIPTION_ID;
+const VESTABOARD_API_KEY = process.env.VESTABOARD_API_KEY;
+const VESTABOARD_API_SECRET = process.env.VESTABOARD_API_SECRET;
 
-// Helper function for making NWS API requests
-async function makeNWSRequest<T>(url: string): Promise<T | null> {
-  const headers = {
-    "User-Agent": USER_AGENT,
-    Accept: "application/geo+json",
+// Helper function for making Vestaboard API requests
+async function makeVestaboardRequest<T>(
+  endpoint: string,
+  method: 'GET' | 'POST' = 'GET',
+  body?: any
+): Promise<T | null> {
+  const url = `${VESTABOARD_API_BASE}/${endpoint}`;
+  
+  // Use Read/Write Key for simpler authentication if available
+  let headers: Record<string, string> = {
+    'Content-Type': 'application/json',
   };
 
+  if (VESTABOARD_READ_WRITE_KEY) {
+    headers['X-Vestaboard-Read-Write-Key'] = VESTABOARD_READ_WRITE_KEY;
+  } else if (VESTABOARD_API_KEY && VESTABOARD_API_SECRET) {
+    // Use API Key/Secret authentication
+    headers['X-Vestaboard-Api-Key'] = VESTABOARD_API_KEY;
+    headers['X-Vestaboard-Api-Secret'] = VESTABOARD_API_SECRET;
+  } else {
+    console.error('No Vestaboard authentication credentials provided');
+    return null;
+  }
+
   try {
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+    
     return (await response.json()) as T;
   } catch (error) {
-    console.error("Error making NWS request:", error);
+    console.error("Error making Vestaboard request:", error);
     return null;
   }
 }
 
-interface AlertFeature {
-  properties: {
-    event?: string;
-    areaDesc?: string;
-    severity?: string;
-    status?: string;
-    headline?: string;
+// VBML to character codes conversion
+const VBML_CHARACTER_MAP: Record<string, number> = {
+  'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8, 'I': 9, 'J': 10,
+  'K': 11, 'L': 12, 'M': 13, 'N': 14, 'O': 15, 'P': 16, 'Q': 17, 'R': 18, 'S': 19, 'T': 20,
+  'U': 21, 'V': 22, 'W': 23, 'X': 24, 'Y': 25, 'Z': 26,
+  '0': 27, '1': 28, '2': 29, '3': 30, '4': 31, '5': 32, '6': 33, '7': 34, '8': 35, '9': 36,
+  '!': 37, '@': 38, '#': 39, '$': 40, '(': 41, ')': 42,
+  '-': 44, '+': 46, '&': 47, '=': 48, ';': 49, ':': 50, "'": 52, '"': 53, '%': 54, ',': 55,
+  '.': 56, '/': 59, '?': 60, ' ': 0, // Space character
+  // Add colored squares
+  '{red}': 63, '{orange}': 64, '{yellow}': 65, '{green}': 66, '{blue}': 67, '{violet}': 68, '{white}': 69
+};
+
+// Convert VBML text to character codes matrix (6 rows x 22 columns)
+function vbmlToCharacterCodes(vbml: string): number[][] {
+  const matrix: number[][] = Array(6).fill(null).map(() => Array(22).fill(0));
+  let row = 0;
+  let col = 0;
+  
+  for (let i = 0; i < vbml.length && row < 6; i++) {
+    const char = vbml[i].toUpperCase();
+    
+    // Handle colored squares
+    if (char === '{') {
+      const endIndex = vbml.indexOf('}', i);
+      if (endIndex !== -1) {
+        const colorCode = vbml.substring(i, endIndex + 1).toLowerCase();
+        if (VBML_CHARACTER_MAP[colorCode]) {
+          matrix[row][col] = VBML_CHARACTER_MAP[colorCode];
+          col++;
+          i = endIndex;
+        }
+      }
+    } else if (char === '\n') {
+      row++;
+      col = 0;
+    } else if (VBML_CHARACTER_MAP[char] !== undefined) {
+      matrix[row][col] = VBML_CHARACTER_MAP[char];
+      col++;
+    }
+    
+    // Move to next row if we exceed column limit
+    if (col >= 22) {
+      row++;
+      col = 0;
+    }
+  }
+  
+  return matrix;
+}
+
+// Convert character codes matrix to readable text
+function characterCodesToText(matrix: number[][]): string {
+  const codeToChar: Record<number, string> = {};
+  Object.entries(VBML_CHARACTER_MAP).forEach(([char, code]) => {
+    codeToChar[code] = char;
+  });
+  codeToChar[0] = ' '; // Space
+  
+  return matrix.map(row => 
+    row.map(code => codeToChar[code] || '?').join('')
+  ).join('\n');
+}
+
+interface VestaboardMessage {
+  currentMessage?: {
+    layout: number[][];
   };
 }
 
-// Format alert data
-function formatAlert(feature: AlertFeature): string {
-  const props = feature.properties;
-  return [
-    `Event: ${props.event || "Unknown"}`,
-    `Area: ${props.areaDesc || "Unknown"}`,
-    `Severity: ${props.severity || "Unknown"}`,
-    `Status: ${props.status || "Unknown"}`,
-    `Headline: ${props.headline || "No headline"}`,
-    "---",
-  ].join("\n");
-}
-
-interface ForecastPeriod {
-  name?: string;
-  temperature?: number;
-  temperatureUnit?: string;
-  windSpeed?: string;
-  windDirection?: string;
-  shortForecast?: string;
-}
-
-interface AlertsResponse {
-  features: AlertFeature[];
-}
-
-interface PointsResponse {
-  properties: {
-    forecast?: string;
-  };
-}
-
-interface ForecastResponse {
-  properties: {
-    periods: ForecastPeriod[];
+interface VestaboardPostResponse {
+  created: {
+    id: string;
+    text?: string;
   };
 }
 
@@ -92,8 +147,8 @@ export class MCPServer {
   transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
   private toolInterval: NodeJS.Timeout | undefined;
-  private getAlertsToolName = "get-alerts";
-  private getForecastToolName = "get-forecast";
+  private getCurrentMessageToolName = "get-current-message";
+  private postMessageToolName = "post-message";
 
   constructor(server: Server) {
     this.server = server;
@@ -285,42 +340,38 @@ export class MCPServer {
     // Define available tools
     const setToolSchema = () =>
       this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-        const getAlertsToolSchema = {
-          name: this.getAlertsToolName,
-          description: "Get weather alerts for a state",
+        const getCurrentMessageToolSchema = {
+          name: this.getCurrentMessageToolName,
+          description: "Get the current message displayed on the Vestaboard",
           inputSchema: {
             type: "object",
-            properties: {
-              state: {
-                type: "string",
-                description: "Two-letter state code (e.g. CA, NY)",
-              },
-            },
-            required: ["state"],
+            properties: {},
+            required: [],
           },
         };
 
-        const getForecastToolSchema = {
-          name: this.getForecastToolName,
-          description: "Get weather forecast for a location",
+        const postMessageToolSchema = {
+          name: this.postMessageToolName,
+          description: "Post a new message to the Vestaboard using VBML (Vestaboard Markup Language) or plain text",
           inputSchema: {
             type: "object",
             properties: {
-              latitude: {
-                type: "number",
-                description: "Latitude of the location",
+              text: {
+                type: "string",
+                description: "The message text to display. Can use VBML formatting like {red}, {blue}, etc. for colored squares, or plain text. Max 6 lines, 22 characters per line.",
               },
-              longitude: {
-                type: "number",
-                description: "Longitude of the location",
+              useVBML: {
+                type: "boolean",
+                description: "Whether to parse the text as VBML (default: true). Set to false for raw character codes.",
+                default: true,
               },
             },
-            required: ["latitude", "longitude"],
+            required: ["text"],
           },
         };
 
         return {
-          tools: [getAlertsToolSchema, getForecastToolSchema],
+          tools: [getCurrentMessageToolSchema, postMessageToolSchema],
         };
       });
 
@@ -354,133 +405,106 @@ export class MCPServer {
           throw new Error("tool name undefined");
         }
 
-        if (toolName === this.getAlertsToolName) {
-          const state = args.state as string;
-          const stateCode = state.toUpperCase();
-          const alertsUrl = `${NWS_API_BASE}/alerts?area=${stateCode}`;
-          const alertsData = await makeNWSRequest<AlertsResponse>(alertsUrl);
+        if (toolName === this.getCurrentMessageToolName) {
+          // Get current message from Vestaboard
+          let endpoint = 'subscriptions';
+          if (VESTABOARD_SUBSCRIPTION_ID) {
+            endpoint = `subscriptions/${VESTABOARD_SUBSCRIPTION_ID}`;
+          }
+          
+          const messageData = await makeVestaboardRequest<VestaboardMessage>(endpoint);
 
-          if (!alertsData) {
+          if (!messageData) {
             return {
               content: [
                 {
                   type: "text",
-                  text: "Failed to retrieve alerts data",
+                  text: "Failed to retrieve current message from Vestaboard. Please check your authentication credentials.",
                 },
               ],
             };
           }
 
-          const features = alertsData.features || [];
-          if (features.length === 0) {
+          const currentLayout = messageData.currentMessage?.layout;
+          if (!currentLayout) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `No active alerts for ${stateCode}`,
+                  text: "No current message found on Vestaboard.",
                 },
               ],
             };
           }
 
-          const formattedAlerts = features.map(formatAlert);
-          const alertsText = `Active alerts for ${stateCode}:\n\n${formattedAlerts.join(
-            "\n"
-          )}`;
-
+          const readableText = characterCodesToText(currentLayout);
+          
           return {
             content: [
               {
                 type: "text",
-                text: alertsText,
+                text: `Current Vestaboard message:\n\n${readableText}`,
               },
             ],
           };
         }
 
-        if (toolName === this.getForecastToolName) {
-          const latitude = args.latitude as number;
-          const longitude = args.longitude as number;
-          // Get grid point data
-          const pointsUrl = `${NWS_API_BASE}/points/${latitude.toFixed(
-            4
-          )},${longitude.toFixed(4)}`;
-          const pointsData = await makeNWSRequest<PointsResponse>(pointsUrl);
-
-          if (!pointsData) {
+        if (toolName === this.postMessageToolName) {
+          const text = args.text as string;
+          const useVBML = args.useVBML !== false; // Default to true
+          
+          if (!text) {
             return {
               content: [
                 {
                   type: "text",
-                  text: `Failed to retrieve grid point data for coordinates: ${latitude}, ${longitude}. This location may not be supported by the NWS API (only US locations are supported).`,
+                  text: "No text provided for Vestaboard message.",
                 },
               ],
             };
           }
 
-          const forecastUrl = pointsData.properties?.forecast;
-          if (!forecastUrl) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: "Failed to get forecast URL from grid point data",
-                },
-              ],
-            };
+          let characterCodes: number[][];
+          
+          if (useVBML) {
+            // Convert VBML text to character codes
+            characterCodes = vbmlToCharacterCodes(text);
+          } else {
+            // For raw text, convert to simple character codes
+            characterCodes = vbmlToCharacterCodes(text);
           }
 
-          // Get forecast data
-          const forecastData = await makeNWSRequest<ForecastResponse>(
-            forecastUrl
-          );
-          if (!forecastData) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: "Failed to retrieve forecast data",
-                },
-              ],
-            };
+          // Post message to Vestaboard
+          let endpoint = 'subscriptions';
+          if (VESTABOARD_SUBSCRIPTION_ID) {
+            endpoint = `subscriptions/${VESTABOARD_SUBSCRIPTION_ID}/message`;
           }
-
-          const periods = forecastData.properties?.periods || [];
-          if (periods.length === 0) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: "No forecast periods available",
-                },
-              ],
-            };
-          }
-
-          // Format forecast periods
-          const formattedForecast = periods.map((period: ForecastPeriod) =>
-            [
-              `${period.name || "Unknown"}:`,
-              `Temperature: ${period.temperature || "Unknown"}°${
-                period.temperatureUnit || "F"
-              }`,
-              `Wind: ${period.windSpeed || "Unknown"} ${
-                period.windDirection || ""
-              }`,
-              `${period.shortForecast || "No forecast available"}`,
-              "---",
-            ].join("\n")
+          
+          const postData = useVBML ? { text } : { characters: characterCodes };
+          const response = await makeVestaboardRequest<VestaboardPostResponse>(
+            endpoint,
+            'POST',
+            postData
           );
 
-          const forecastText = `Forecast for ${latitude}, ${longitude}:\n\n${formattedForecast.join(
-            "\n"
-          )}`;
+          if (!response) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Failed to post message to Vestaboard. Please check your authentication credentials and message format.",
+                },
+              ],
+            };
+          }
 
+          const displayText = characterCodesToText(characterCodes);
+          
           return {
             content: [
               {
                 type: "text",
-                text: forecastText,
+                text: `Successfully posted message to Vestaboard!\n\nMessage ID: ${response.created.id}\n\nDisplayed text:\n${displayText}`,
               },
             ],
           };

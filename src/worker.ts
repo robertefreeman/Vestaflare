@@ -60,7 +60,7 @@ export default {
 
         // TODO: Implement MCP server logic here
         // TODO: Handle both GET (SSE) and POST (JSON-RPC) requests
-        // TODO: Integrate weather tools (get-alerts, get-forecast)
+        // TODO: Integrate Vestaboard tools (get-current-message, post-message)
         // TODO: Implement session management compatible with Workers
         
         if (request.method === 'GET') {
@@ -128,12 +128,12 @@ interface Env {
   MCP_API_KEY?: string;
   MCP_AUTH_HEADER_NAME?: string;
   
-  // Weather API Configuration
-  WEATHER_API_BASE_URL?: string;
-  USER_AGENT?: string;
-  
-  // API Keys (add as needed for your MCP tools)
-  WEATHER_API_KEY?: string;
+  // Vestaboard API Configuration
+  VESTABOARD_API_BASE_URL?: string;
+  VESTABOARD_READ_WRITE_KEY?: string;
+  VESTABOARD_SUBSCRIPTION_ID?: string;
+  VESTABOARD_API_KEY?: string;
+  VESTABOARD_API_SECRET?: string;
   OPENAI_API_KEY?: string;
   GOOGLE_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;

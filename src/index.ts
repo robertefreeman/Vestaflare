@@ -1,12 +1,10 @@
 #!/usr/bin/env node
 
-import { config } from "dotenv";
 import express, { Request, Response } from "express";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { MCPServer } from "./server.js";
 
-// Load environment variables from .env file
-config();
+// Environment variables are automatically available via process.env
 
 // Default port from environment or fallback
 let PORT = parseInt(process.env.PORT || "8123", 10);
