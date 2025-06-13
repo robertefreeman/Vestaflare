@@ -65,20 +65,15 @@ function characterCodesToText(matrix) {
 // Helper function for making Vestaboard API requests
 async function makeVestaboardRequest(endpoint, method = 'GET', body, env) {
     const url = `${VESTABOARD_API_BASE}/${endpoint}`;
-    // Use Read/Write Key for simpler authentication if available
+    // Use Read/Write Key authentication for Read-Write API
     let headers = {
         'Content-Type': 'application/json',
     };
     if (env?.VESTABOARD_READ_WRITE_KEY) {
         headers['X-Vestaboard-Read-Write-Key'] = env.VESTABOARD_READ_WRITE_KEY;
     }
-    else if (env?.VESTABOARD_API_KEY && env?.VESTABOARD_API_SECRET) {
-        // Use API Key/Secret authentication
-        headers['X-Vestaboard-Api-Key'] = env.VESTABOARD_API_KEY;
-        headers['X-Vestaboard-Api-Secret'] = env.VESTABOARD_API_SECRET;
-    }
     else {
-        console.error('No Vestaboard authentication credentials provided');
+        console.error('VESTABOARD_READ_WRITE_KEY is required for Read-Write API');
         return null;
     }
     try {
@@ -158,17 +153,17 @@ async function handleInitialize(request, env) {
                 version: env.MCP_SERVER_VERSION || "1.0.0"
             }
         },
-        id: request.id || null
+        id: request.id ?? null
     };
 }
-async function handleListTools() {
+async function handleListTools(request) {
     return {
         jsonrpc: "2.0",
         result: {
             tools: [
                 {
                     name: "get-current-message",
-                    description: "Get the current message displayed on the Vestaboard",
+                    description: "Get the current message displayed on the Vestaboard using Read-Write API",
                     inputSchema: {
                         type: "object",
                         properties: {},
@@ -177,7 +172,7 @@ async function handleListTools() {
                 },
                 {
                     name: "post-message",
-                    description: "Post a new message to the Vestaboard using VBML (Vestaboard Markup Language) or plain text",
+                    description: "Post a new message to the Vestaboard using Read-Write API with character codes",
                     inputSchema: {
                         type: "object",
                         properties: {
@@ -185,28 +180,20 @@ async function handleListTools() {
                                 type: "string",
                                 description: "The message text to display. Can use VBML formatting like {red}, {blue}, etc. for colored squares, or plain text. Max 6 lines, 22 characters per line.",
                             },
-                            useVBML: {
-                                type: "boolean",
-                                description: "Whether to parse the text as VBML (default: true). Set to false for raw character codes.",
-                                default: true,
-                            },
                         },
                         required: ["text"],
                     },
                 }
             ],
         },
-        id: null
+        id: request.id ?? null
     };
 }
 async function handleCallTool(request, env) {
     const { name: toolName, arguments: args } = request.params;
     if (toolName === "get-current-message") {
-        // Get current message from Vestaboard
-        let endpoint = 'subscriptions';
-        if (env.VESTABOARD_SUBSCRIPTION_ID) {
-            endpoint = `subscriptions/${env.VESTABOARD_SUBSCRIPTION_ID}`;
-        }
+        // Get current message from Vestaboard using Read-Write API
+        const endpoint = '';
         const messageData = await makeVestaboardRequest(endpoint, 'GET', undefined, env);
         if (!messageData) {
             return {
@@ -219,11 +206,11 @@ async function handleCallTool(request, env) {
                         },
                     ],
                 },
-                id: request.id || null
+                id: request.id ?? null
             };
         }
-        const currentLayout = messageData.currentMessage?.layout;
-        if (!currentLayout) {
+        const currentLayout = messageData;
+        if (!currentLayout || !Array.isArray(currentLayout)) {
             return {
                 jsonrpc: "2.0",
                 result: {
@@ -234,7 +221,7 @@ async function handleCallTool(request, env) {
                         },
                     ],
                 },
-                id: request.id || null
+                id: request.id ?? null
             };
         }
         const readableText = characterCodesToText(currentLayout);
@@ -248,12 +235,11 @@ async function handleCallTool(request, env) {
                     },
                 ],
             },
-            id: request.id || null
+            id: request.id ?? null
         };
     }
     if (toolName === "post-message") {
         const text = args.text;
-        const useVBML = args.useVBML !== false; // Default to true
         if (!text) {
             return {
                 jsonrpc: "2.0",
@@ -265,16 +251,13 @@ async function handleCallTool(request, env) {
                         },
                     ],
                 },
-                id: request.id || null
+                id: request.id ?? null
             };
         }
         const characterCodes = vbmlToCharacterCodes(text);
-        // Post message to Vestaboard
-        let endpoint = 'subscriptions';
-        if (env.VESTABOARD_SUBSCRIPTION_ID) {
-            endpoint = `subscriptions/${env.VESTABOARD_SUBSCRIPTION_ID}/message`;
-        }
-        const postData = useVBML ? { text } : { characters: characterCodes };
+        // Post message to Vestaboard using Read-Write API
+        const endpoint = '';
+        const postData = characterCodes;
         const response = await makeVestaboardRequest(endpoint, 'POST', postData, env);
         if (!response) {
             return {
@@ -287,7 +270,7 @@ async function handleCallTool(request, env) {
                         },
                     ],
                 },
-                id: request.id || null
+                id: request.id ?? null
             };
         }
         const displayText = characterCodesToText(characterCodes);
@@ -297,11 +280,11 @@ async function handleCallTool(request, env) {
                 content: [
                     {
                         type: "text",
-                        text: `Successfully posted message to Vestaboard!\n\nMessage ID: ${response.created.id}\n\nDisplayed text:\n${displayText}`,
+                        text: `Successfully posted message to Vestaboard!\n\nDisplayed text:\n${displayText}`,
                     },
                 ],
             },
-            id: request.id || null
+            id: request.id ?? null
         };
     }
     return {
@@ -310,7 +293,7 @@ async function handleCallTool(request, env) {
             code: -32601,
             message: `Tool not found: ${toolName}`
         },
-        id: request.id || null
+        id: request.id ?? null
     };
 }
 // Session management for SSE connections
@@ -420,8 +403,14 @@ export default {
                             case 'initialize':
                                 response = await handleInitialize(body, env);
                                 break;
+                            case 'initialized':
+                                // MCP initialized notification - no response needed
+                                return new Response(null, {
+                                    status: 204,
+                                    headers: corsHeaders,
+                                });
                             case 'tools/list':
-                                response = await handleListTools();
+                                response = await handleListTools(body);
                                 break;
                             case 'tools/call':
                                 response = await handleCallTool(body, env);
@@ -433,7 +422,7 @@ export default {
                                         code: -32601,
                                         message: `Method not found: ${body.method}`
                                     },
-                                    id: body.id || null
+                                    id: body.id ?? null
                                 };
                         }
                         return new Response(JSON.stringify(response), {

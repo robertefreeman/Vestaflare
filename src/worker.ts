@@ -107,19 +107,15 @@ async function makeVestaboardRequest<T>(
 ): Promise<T | null> {
   const url = `${VESTABOARD_API_BASE}/${endpoint}`;
   
-  // Use Read/Write Key for simpler authentication if available
+  // Use Read/Write Key authentication for Read-Write API
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
   if (env?.VESTABOARD_READ_WRITE_KEY) {
     headers['X-Vestaboard-Read-Write-Key'] = env.VESTABOARD_READ_WRITE_KEY;
-  } else if (env?.VESTABOARD_API_KEY && env?.VESTABOARD_API_SECRET) {
-    // Use API Key/Secret authentication
-    headers['X-Vestaboard-Api-Key'] = env.VESTABOARD_API_KEY;
-    headers['X-Vestaboard-Api-Secret'] = env.VESTABOARD_API_SECRET;
   } else {
-    console.error('No Vestaboard authentication credentials provided');
+    console.error('VESTABOARD_READ_WRITE_KEY is required for Read-Write API');
     return null;
   }
 
@@ -219,7 +215,7 @@ async function handleListTools(request: JSONRPCRequest): Promise<JSONRPCResponse
       tools: [
         {
           name: "get-current-message",
-          description: "Get the current message displayed on the Vestaboard",
+          description: "Get the current message displayed on the Vestaboard using Read-Write API",
           inputSchema: {
             type: "object",
             properties: {},
@@ -228,7 +224,7 @@ async function handleListTools(request: JSONRPCRequest): Promise<JSONRPCResponse
         },
         {
           name: "post-message",
-          description: "Post a new message to the Vestaboard using VBML (Vestaboard Markup Language) or plain text",
+          description: "Post a new message to the Vestaboard using Read-Write API with character codes",
           inputSchema: {
             type: "object",
             properties: {
@@ -236,18 +232,13 @@ async function handleListTools(request: JSONRPCRequest): Promise<JSONRPCResponse
                 type: "string",
                 description: "The message text to display. Can use VBML formatting like {red}, {blue}, etc. for colored squares, or plain text. Max 6 lines, 22 characters per line.",
               },
-              useVBML: {
-                type: "boolean",
-                description: "Whether to parse the text as VBML (default: true). Set to false for raw character codes.",
-                default: true,
-              },
             },
             required: ["text"],
           },
         }
       ],
     },
-    id: request.id
+    id: request.id ?? null
   };
 }
 
@@ -255,11 +246,8 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
   const { name: toolName, arguments: args } = request.params;
 
   if (toolName === "get-current-message") {
-    // Get current message from Vestaboard
-    let endpoint = 'subscriptions';
-    if (env.VESTABOARD_SUBSCRIPTION_ID) {
-      endpoint = `subscriptions/${env.VESTABOARD_SUBSCRIPTION_ID}`;
-    }
+    // Get current message from Vestaboard using Read-Write API
+    const endpoint = '';
     
     const messageData = await makeVestaboardRequest<any>(endpoint, 'GET', undefined, env);
 
@@ -278,8 +266,8 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
       };
     }
 
-    const currentLayout = messageData.currentMessage?.layout;
-    if (!currentLayout) {
+    const currentLayout = messageData;
+    if (!currentLayout || !Array.isArray(currentLayout)) {
       return {
         jsonrpc: "2.0",
         result: {
@@ -312,7 +300,6 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
 
   if (toolName === "post-message") {
     const text = args.text as string;
-    const useVBML = args.useVBML !== false; // Default to true
     
     if (!text) {
       return {
@@ -331,13 +318,10 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
 
     const characterCodes = vbmlToCharacterCodes(text);
 
-    // Post message to Vestaboard
-    let endpoint = 'subscriptions';
-    if (env.VESTABOARD_SUBSCRIPTION_ID) {
-      endpoint = `subscriptions/${env.VESTABOARD_SUBSCRIPTION_ID}/message`;
-    }
+    // Post message to Vestaboard using Read-Write API
+    const endpoint = '';
     
-    const postData = useVBML ? { text } : { characters: characterCodes };
+    const postData = characterCodes;
     const response = await makeVestaboardRequest<any>(
       endpoint,
       'POST',
@@ -368,7 +352,7 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
         content: [
           {
             type: "text",
-            text: `Successfully posted message to Vestaboard!\n\nMessage ID: ${response.created.id}\n\nDisplayed text:\n${displayText}`,
+            text: `Successfully posted message to Vestaboard!\n\nDisplayed text:\n${displayText}`,
           },
         ],
       },
@@ -619,9 +603,6 @@ interface Env {
   // Vestaboard API Configuration
   VESTABOARD_API_BASE_URL?: string;
   VESTABOARD_READ_WRITE_KEY?: string;
-  VESTABOARD_SUBSCRIPTION_ID?: string;
-  VESTABOARD_API_KEY?: string;
-  VESTABOARD_API_SECRET?: string;
   OPENAI_API_KEY?: string;
   GOOGLE_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;

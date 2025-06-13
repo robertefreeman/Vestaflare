@@ -8,7 +8,7 @@ This document provides detailed instructions for deploying and operating the Ves
 
 - **Cloudflare Account** with Workers enabled.
 - **GitHub Repository** with access to Actions.
-- **Vestaboard API Credentials** (Read/Write Key or API Key + Secret).
+- **Vestaboard Read/Write Key** from your Vestaboard account.
 
 ---
 
@@ -26,7 +26,7 @@ All configuration is managed via environment variables, injected as GitHub Secre
 1. Go to your repository's **Settings > Secrets and variables > Actions**.
 2. Add all required environment variables as secrets (see `.dev.vars.example`).
 3. Required secrets typically include:
-   - `VESTABOARD_API_KEY`, `VESTABOARD_API_SECRET`, `VESTABOARD_READ_WRITE_KEY`, etc.
+   - `VESTABOARD_READ_WRITE_KEY`
    - `MCP_AUTH_REQUIRED`, `MCP_API_KEY` (if authentication is enabled)
    - Any other integration keys needed for your deployment
 
