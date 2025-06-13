@@ -14,25 +14,23 @@ MCP_AUTH_HEADER_NAME = "Authorization"
 
 # Development configuration
 [env.development]
-vars = {
-  ENVIRONMENT = "development",
-  MCP_SERVER_NAME = "vestaflare",
-  MCP_SERVER_VERSION = "1.0.0",
-  MCP_SESSION_HEADER_NAME = "mcp-session-id",
-  MCP_AUTH_REQUIRED = "true",
-  MCP_AUTH_HEADER_NAME = "Authorization"
-}
+[env.development.vars]
+ENVIRONMENT = "development"
+MCP_SERVER_NAME = "vestaflare"
+MCP_SERVER_VERSION = "1.0.0"
+MCP_SESSION_HEADER_NAME = "mcp-session-id"
+MCP_AUTH_REQUIRED = "true"
+MCP_AUTH_HEADER_NAME = "Authorization"
 
 # Production configuration
 [env.production]
-vars = {
-  ENVIRONMENT = "production",
-  MCP_SERVER_NAME = "vestaflare",
-  MCP_SERVER_VERSION = "1.0.0",
-  MCP_SESSION_HEADER_NAME = "mcp-session-id",
-  MCP_AUTH_REQUIRED = "true",
-  MCP_AUTH_HEADER_NAME = "Authorization"
-}
+[env.production.vars]
+ENVIRONMENT = "production"
+MCP_SERVER_NAME = "vestaflare"
+MCP_SERVER_VERSION = "1.0.0"
+MCP_SESSION_HEADER_NAME = "mcp-session-id"
+MCP_AUTH_REQUIRED = "true"
+MCP_AUTH_HEADER_NAME = "Authorization"
 
 # Secrets are handled through the GitHub Actions workflow
 # and don't need to be defined in wrangler.toml

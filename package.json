@@ -39,6 +39,7 @@
         "@cloudflare/workers-types": "^4.20241127.0",
         "@types/express": "^5.0.1",
         "@types/node": "^22.14.0",
+        "mcp-remote": "^0.1.15",
         "typescript": "^5.8.3",
         "wrangler": "^4.0.0"
     }
