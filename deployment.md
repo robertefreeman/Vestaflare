@@ -42,6 +42,7 @@ Before deploying, you must set up the following secrets in your GitHub repositor
 
 #### Essential Secrets (Required):
 - `CLOUDFLARE_API_TOKEN` - Your Cloudflare API token with Workers edit permissions
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare Account ID (found in the right sidebar of your Cloudflare dashboard)
 - `VESTABOARD_READ_WRITE_KEY` - Your Vestaboard Read/Write API key
 - `VESTABOARD_API_BASE_URL` - Vestaboard API base URL (usually `https://rw.vestaboard.com`)
 
@@ -112,12 +113,13 @@ bun run deploy
 4. Redeploy after confirming the secret is set
 
 #### 2. GitHub Actions Deployment Fails
-**Cause:** Missing or incorrect `CLOUDFLARE_API_TOKEN`.
+**Cause:** Missing or incorrect `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID`.
 
 **Solution:**
 1. Generate a new Cloudflare API token with `Workers:Edit` permissions
 2. Add it as `CLOUDFLARE_API_TOKEN` in GitHub Secrets
-3. Ensure the token has access to your Cloudflare account and the specific zone
+3. Find your Account ID in the Cloudflare dashboard (right sidebar) and add it as `CLOUDFLARE_ACCOUNT_ID`
+4. Ensure the token has access to your Cloudflare account and the specific zone
 
 #### 3. Wrangler Authentication Errors
 **Cause:** Cloudflare API token lacks sufficient permissions.

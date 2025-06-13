@@ -3,6 +3,10 @@ main = "dist/worker.js"
 compatibility_date = "2024-12-06"
 compatibility_flags = ["nodejs_compat"]
 
+# Account ID is required for Cloudflare API authentication
+# This can be set via CLOUDFLARE_ACCOUNT_ID environment variable
+# or by adding account_id = "your-account-id-here" directly
+
 [vars]
 # Default environment variables
 ENVIRONMENT = "development"

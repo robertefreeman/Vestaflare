@@ -30,6 +30,7 @@ The deployment has been updated to use Wrangler v4.0+ with the following improve
 Ensure these secrets are configured in your GitHub repository:
 
 - `CLOUDFLARE_API_TOKEN`: Your Cloudflare API token with Workers:Edit permissions
+- `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare Account ID (found in the right sidebar of your Cloudflare dashboard)
 - `VESTABOARD_API_BASE_URL`: Base URL for Vestaboard API (usually `https://rw.vestaboard.com`)
 - `VESTABOARD_READ_WRITE_KEY`: Your Vestaboard Read-Write API key
 - `MCP_API_KEY`: API key for MCP server authentication
@@ -102,6 +103,7 @@ If deployment fails:
 4. **Check API Token Permissions**
    - Cloudflare API token needs Workers:Edit permissions
    - Token should have access to the target zone/account
+   - Ensure CLOUDFLARE_ACCOUNT_ID is set correctly (found in Cloudflare dashboard sidebar)
 
 ## Version Compatibility
 
