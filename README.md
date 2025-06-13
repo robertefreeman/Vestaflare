@@ -439,6 +439,40 @@ When authentication is disabled, the server will accept all requests without che
 
 ---
 
+## 🚀 CI/CD Deployment
+
+This repository includes GitHub Actions workflows for automated deployment to Cloudflare Workers.
+
+### 🔧 Setup Required Secrets
+
+Before deploying, add these secrets to your GitHub repository:
+
+1. **CLOUDFLARE_API_TOKEN**: Your Cloudflare API token with Workers deploy permissions
+2. **CLOUDFLARE_ACCOUNT_ID**: Your Cloudflare account ID
+
+To get these values:
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens)
+2. Create a custom token with "Cloudflare Workers:Edit" permissions
+3. Copy your Account ID from the right sidebar
+
+### 🎯 Manual Deployment
+
+1. Go to the **Actions** tab in your GitHub repository
+2. Select **"Deploy to Cloudflare Workers"** workflow
+3. Click **"Run workflow"**
+4. Choose your environment (production/development)
+5. Click **"Run workflow"** to deploy
+
+### 🔄 Automatic Build Validation
+
+The repository includes a build workflow that runs on:
+- Every push to `main` branch
+- Every pull request to `main` branch
+
+This ensures your code builds correctly before manual deployment.
+
+---
+
 ## 📄 License
 
 ISC
@@ -449,9 +483,10 @@ ISC
 
 1. 🔧 **Customize Tools**: Replace the example tools with your specific functionality
 2. ☁️ **Configure Deployment**: Update `wrangler.toml` with your project details
-3. 🧪 **Test Locally**: Use the example client to verify your implementation
-4. 🚀 **Deploy**: Push to Cloudflare Workers free tier
-5. 🔌 **Connect**: Integrate with MCP-compatible clients
+3. 🔑 **Setup CI/CD**: Add Cloudflare secrets to GitHub repository for automated deployment
+4. 🧪 **Test Locally**: Use the example client to verify your implementation
+5. 🚀 **Deploy**: Use GitHub Actions workflow to deploy to Cloudflare Workers
+6. 🔌 **Connect**: Integrate with MCP-compatible clients
 
 🎉 This template provides everything you need to build, test, and deploy production-ready MCP servers with minimal setup time! ✨
 
