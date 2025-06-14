@@ -15,7 +15,11 @@
         "dev:worker": "wrangler dev",
         "deploy": "wrangler deploy",
         "build:worker": "npx tsc --project tsconfig.worker.json",
-        "build:worker:bun": "bun run tsc --project tsconfig.worker.json"
+        "build:worker:bun": "bun run tsc --project tsconfig.worker.json",
+        "test": "node src/run-tests.js",
+        "test:unit": "node src/test-formatter.js",
+        "test:validate": "node src/validate-formatting.js",
+        "test:build": "npx tsc && npm run test"
     },
     "files": [
         "build"

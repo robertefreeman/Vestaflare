@@ -31,6 +31,8 @@ interface JSONRPCNotification {
   params?: any;
 }
 
+import { formatTextForVestaboard, TextFormattingOptions } from './text-formatter.js';
+
 // Vestaboard API configuration
 const VESTABOARD_API_BASE = "https://rw.vestaboard.com";
 
@@ -48,19 +50,22 @@ const VBML_CHARACTER_MAP: Record<string, number> = {
 };
 
 // Convert VBML text to character codes matrix (6 rows x 22 columns)
-function vbmlToCharacterCodes(vbml: string): number[][] {
+function vbmlToCharacterCodes(vbml: string, formatOptions?: TextFormattingOptions): number[][] {
+  // Apply intelligent formatting before conversion
+  const formattedText = formatTextForVestaboard(vbml, formatOptions);
+  
   const matrix: number[][] = Array(6).fill(null).map(() => Array(22).fill(0));
   let row = 0;
   let col = 0;
   
-  for (let i = 0; i < vbml.length && row < 6; i++) {
-    const char = vbml[i].toUpperCase();
+  for (let i = 0; i < formattedText.length && row < 6; i++) {
+    const char = formattedText[i].toUpperCase();
     
     // Handle colored squares
     if (char === '{') {
-      const endIndex = vbml.indexOf('}', i);
+      const endIndex = formattedText.indexOf('}', i);
       if (endIndex !== -1) {
-        const colorCode = vbml.substring(i, endIndex + 1).toLowerCase();
+        const colorCode = formattedText.substring(i, endIndex + 1).toLowerCase();
         if (VBML_CHARACTER_MAP[colorCode]) {
           matrix[row][col] = VBML_CHARACTER_MAP[colorCode];
           col++;
@@ -285,13 +290,31 @@ async function handleListTools(request: JSONRPCRequest): Promise<JSONRPCResponse
         },
         {
           name: "post-message",
-          description: "Post a new message to the Vestaboard using Read-Write API with character codes",
+          description: "Post a new message to the Vestaboard using Read-Write API with intelligent formatting",
           inputSchema: {
             type: "object",
             properties: {
               text: {
                 type: "string",
-                description: "The message text to display. Can use VBML formatting like {red}, {blue}, etc. for colored squares, or plain text. Max 6 lines, 22 characters per line.",
+                description: "The message text to display. Can use VBML formatting like {red}, {blue}, etc. for colored squares, or plain text. Text will be intelligently formatted to fit the 6x22 grid.",
+              },
+              horizontalAlign: {
+                type: "string",
+                enum: ["left", "center", "right"],
+                description: "Horizontal text alignment (default: left)",
+                default: "left",
+              },
+              verticalAlign: {
+                type: "string",
+                enum: ["top", "middle", "bottom"],
+                description: "Vertical text alignment (default: top)",
+                default: "top",
+              },
+              overflowHandling: {
+                type: "string",
+                enum: ["truncate", "ellipsis", "error"],
+                description: "How to handle text that exceeds the 6x22 grid (default: truncate)",
+                default: "truncate",
               },
             },
             required: ["text"],
@@ -404,15 +427,26 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
       };
     }
     
-    // Safely extract text parameter with validation
+    // Safely extract parameters with validation
     let text: string;
+    let horizontalAlign: string;
+    let verticalAlign: string;
+    let overflowHandling: string;
+    
     try {
       text = args.text as string;
+      horizontalAlign = args.horizontalAlign || 'left';
+      verticalAlign = args.verticalAlign || 'top';
+      overflowHandling = args.overflowHandling || 'truncate';
+      
       debugLog('Parameter extraction successful:', {
         hasTextProperty: 'text' in args,
         textValue: text,
         textType: typeof text,
-        textLength: text?.length
+        textLength: text?.length,
+        horizontalAlign,
+        verticalAlign,
+        overflowHandling
       });
     } catch (error) {
       debugLog('CRITICAL ERROR: Parameter extraction failed:', {
@@ -451,13 +485,40 @@ async function handleCallTool(request: JSONRPCRequest, env: Env): Promise<JSONRP
       };
     }
 
-    debugLog('Converting text to character codes...');
-    const characterCodes = vbmlToCharacterCodes(text);
-    debugLog('Character codes conversion result:', {
-      matrixSize: `${characterCodes.length}x${characterCodes[0]?.length || 0}`,
-      firstRow: characterCodes[0]?.slice(0, 5) || [],
-      totalCharacters: characterCodes.flat().filter(c => c !== 0).length
-    });
+    // Build formatting options
+    const formatOptions: TextFormattingOptions = {
+      horizontalAlign: horizontalAlign as 'left' | 'center' | 'right',
+      verticalAlign: verticalAlign as 'top' | 'middle' | 'bottom',
+      overflowHandling: overflowHandling as 'truncate' | 'ellipsis' | 'error'
+    };
+
+    debugLog('Converting text to character codes with formatting options:', formatOptions);
+    
+    let characterCodes: number[][];
+    try {
+      characterCodes = vbmlToCharacterCodes(text, formatOptions);
+      debugLog('Character codes conversion result:', {
+        matrixSize: `${characterCodes.length}x${characterCodes[0]?.length || 0}`,
+        firstRow: characterCodes[0]?.slice(0, 5) || [],
+        totalCharacters: characterCodes.flat().filter(c => c !== 0).length
+      });
+    } catch (error) {
+      debugLog('ERROR: Text formatting failed:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return {
+        jsonrpc: "2.0",
+        result: {
+          content: [
+            {
+              type: "text",
+              text: `Text formatting error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+        },
+        id: request.id ?? null
+      };
+    }
 
     // Post message to Vestaboard Read-Write API
     // The Read-Write API endpoint is just the base URL (empty endpoint)

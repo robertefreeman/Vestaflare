@@ -75,6 +75,8 @@ async function makeVestaboardRequest<T>(
   }
 }
 
+import { formatTextForVestaboard, TextFormattingOptions } from './text-formatter.js';
+
 // VBML to character codes conversion
 const VBML_CHARACTER_MAP: Record<string, number> = {
   'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8, 'I': 9, 'J': 10,
@@ -89,19 +91,22 @@ const VBML_CHARACTER_MAP: Record<string, number> = {
 };
 
 // Convert VBML text to character codes matrix (6 rows x 22 columns)
-function vbmlToCharacterCodes(vbml: string): number[][] {
+function vbmlToCharacterCodes(vbml: string, formatOptions?: TextFormattingOptions): number[][] {
+  // Apply intelligent formatting before conversion
+  const formattedText = formatTextForVestaboard(vbml, formatOptions);
+  
   const matrix: number[][] = Array(6).fill(null).map(() => Array(22).fill(0));
   let row = 0;
   let col = 0;
   
-  for (let i = 0; i < vbml.length && row < 6; i++) {
-    const char = vbml[i].toUpperCase();
+  for (let i = 0; i < formattedText.length && row < 6; i++) {
+    const char = formattedText[i].toUpperCase();
     
     // Handle colored squares
     if (char === '{') {
-      const endIndex = vbml.indexOf('}', i);
+      const endIndex = formattedText.indexOf('}', i);
       if (endIndex !== -1) {
-        const colorCode = vbml.substring(i, endIndex + 1).toLowerCase();
+        const colorCode = formattedText.substring(i, endIndex + 1).toLowerCase();
         if (VBML_CHARACTER_MAP[colorCode]) {
           matrix[row][col] = VBML_CHARACTER_MAP[colorCode];
           col++;
@@ -364,18 +369,36 @@ export class MCPServer {
 
         const postMessageToolSchema = {
           name: this.postMessageToolName,
-          description: "Post a new message to the Vestaboard using VBML (Vestaboard Markup Language) or plain text",
+          description: "Post a new message to the Vestaboard using VBML (Vestaboard Markup Language) or plain text with intelligent formatting",
           inputSchema: {
             type: "object",
             properties: {
               text: {
                 type: "string",
-                description: "The message text to display. Can use VBML formatting like {red}, {blue}, etc. for colored squares, or plain text. Max 6 lines, 22 characters per line.",
+                description: "The message text to display. Can use VBML formatting like {red}, {blue}, etc. for colored squares, or plain text. Text will be intelligently formatted to fit the 6x22 grid.",
               },
               useVBML: {
                 type: "boolean",
                 description: "Whether to parse the text as VBML (default: true). Set to false for raw character codes.",
                 default: true,
+              },
+              horizontalAlign: {
+                type: "string",
+                enum: ["left", "center", "right"],
+                description: "Horizontal text alignment (default: left)",
+                default: "left",
+              },
+              verticalAlign: {
+                type: "string",
+                enum: ["top", "middle", "bottom"],
+                description: "Vertical text alignment (default: top)",
+                default: "top",
+              },
+              overflowHandling: {
+                type: "string",
+                enum: ["truncate", "ellipsis", "error"],
+                description: "How to handle text that exceeds the 6x22 grid (default: truncate)",
+                default: "truncate",
               },
             },
             required: ["text"],
@@ -466,6 +489,9 @@ export class MCPServer {
         if (toolName === this.postMessageToolName) {
           const text = args.text as string;
           const useVBML = args.useVBML !== false; // Default to true
+          const horizontalAlign = args.horizontalAlign || 'left';
+          const verticalAlign = args.verticalAlign || 'top';
+          const overflowHandling = args.overflowHandling || 'truncate';
           
           if (!text) {
             return {
@@ -478,14 +504,33 @@ export class MCPServer {
             };
           }
 
+          // Build formatting options
+          const formatOptions: TextFormattingOptions = {
+            horizontalAlign: horizontalAlign as 'left' | 'center' | 'right',
+            verticalAlign: verticalAlign as 'top' | 'middle' | 'bottom',
+            overflowHandling: overflowHandling as 'truncate' | 'ellipsis' | 'error'
+          };
+
           let characterCodes: number[][];
           
-          if (useVBML) {
-            // Convert VBML text to character codes
-            characterCodes = vbmlToCharacterCodes(text);
-          } else {
-            // For raw text, convert to simple character codes
-            characterCodes = vbmlToCharacterCodes(text);
+          try {
+            if (useVBML) {
+              // Convert VBML text to character codes with formatting
+              characterCodes = vbmlToCharacterCodes(text, formatOptions);
+            } else {
+              // For raw text, convert to simple character codes with formatting
+              characterCodes = vbmlToCharacterCodes(text, formatOptions);
+            }
+          } catch (error) {
+            // Handle formatting errors (e.g., overflow handling set to 'error')
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Text formatting error: ${error instanceof Error ? error.message : String(error)}`,
+                },
+              ],
+            };
           }
 
           // Post message to Vestaboard Read-Write API
